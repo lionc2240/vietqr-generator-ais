@@ -1,5 +1,7 @@
 {
   "name": "VietQR Code Generator",
   "description": "A progressive web application to instantly generate QR codes for Vietnamese bank transfers using the VietQR API. Enter bank details, amount, and a message to create a scannable QR code for easy payments.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "geolocation"
+  ]
 }

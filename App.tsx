@@ -7,6 +7,7 @@ import { getProfiles, saveProfile, deleteProfile } from './services/profileServi
 import { getMessages, saveMessage, deleteMessage } from './services/messageService';
 import { processMessageTemplate } from './utils/templateProcessor';
 import { generateSmartMessage } from './utils/smartMessageGenerator';
+import { getLocationName } from './services/locationService';
 import Header from './components/Header';
 import QRForm from './components/QRForm';
 import QRDisplay from './components/QRDisplay';
@@ -60,6 +61,12 @@ function App() {
   const [messages, setMessages] = useState<SavedMessage[]>([]);
   const [selectedMessageName, setSelectedMessageName] = useState<string>('');
 
+  // Location state
+  const [locationStatus, setLocationStatus] = useState<string | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<string | null>(null);
+
+  // UI State
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => {
     setProfiles(getProfiles());
@@ -79,6 +86,37 @@ function App() {
 
     getBanks();
   }, []);
+  
+  // Effect for fetching location ONCE on component mount
+  useEffect(() => {
+    const fetchLocation = async () => {
+        setLocationStatus('Detecting location...');
+        try {
+            const locationName = await getLocationName();
+            setCurrentLocation(locationName);
+            setLocationStatus(`Location: ${locationName}`);
+        } catch (err) {
+            setCurrentLocation(null);
+            if (err instanceof Error) {
+                setLocationStatus(`Error: ${err.message}`);
+            } else {
+                setLocationStatus('Could not get location. Please enable permissions.');
+            }
+        }
+    };
+    fetchLocation();
+  }, []);
+
+  // Effect for handling placeholder replacement when location is ready
+  useEffect(() => {
+    // Only run replacement if the modal is closed and we have a location.
+    if (!isDropdownOpen && currentLocation && formData.addInfo?.includes('{location}')) {
+        setFormData(prev => ({
+            ...prev,
+            addInfo: prev.addInfo.replace(/{location}/g, currentLocation)
+        }));
+    }
+  }, [currentLocation, formData.addInfo, isDropdownOpen]);
 
   const handleFormChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -110,8 +148,8 @@ function App() {
     // Auto-deselect message if its text is manually changed
     if (name === 'addInfo' && selectedMessageName) {
         const currentMessage = messages.find(m => m.name === selectedMessageName);
-        const processedTemplate = currentMessage ? processMessageTemplate(currentMessage.template) : '';
-        if (value !== processedTemplate) {
+        // Compare against the raw template, as the input now holds the unprocessed template
+        if (currentMessage && value !== currentMessage.template) {
             setSelectedMessageName('');
         }
     }
@@ -191,13 +229,14 @@ function App() {
     if (name) {
         const message = messages.find(m => m.name === name);
         if (message) {
-            const processedText = processMessageTemplate(message.template);
-            setFormData(prev => ({...prev, addInfo: processedText}));
+            // Process the template immediately upon selection and set the result.
+            const processedMessage = processMessageTemplate(message.template, currentLocation);
+            setFormData(prev => ({...prev, addInfo: processedMessage}));
         }
     } else {
         setFormData(prev => ({...prev, addInfo: ''}));
     }
-  }, [messages]);
+  }, [messages, currentLocation]);
 
   const handleDeleteMessage = useCallback((name: string) => {
     const updatedMessages = deleteMessage(name);
@@ -232,15 +271,23 @@ function App() {
         setIsLoading(false);
         return;
     }
+    
+    const rawMessage = formData.addInfo?.trim();
+    let processedMessage: string;
 
-    const message = formData.addInfo?.trim() ? formData.addInfo.trim() : generateSmartMessage();
+    if (rawMessage) {
+        // The message may already have location replaced, but process for date/time.
+        processedMessage = processMessageTemplate(rawMessage, currentLocation);
+    } else {
+        processedMessage = generateSmartMessage();
+    }
 
     const payload: VietQRRequest = {
         acqId: formData.acqId,
         accountNo: formData.accountNo,
         accountName: formData.accountName,
         amount: formData.amount,
-        addInfo: message,
+        addInfo: processedMessage, // Use the fully processed message
         template: 'compact',
         format: 'image'
     };
@@ -287,6 +334,9 @@ function App() {
               onSaveMessage={handleSaveMessage}
               onSelectMessage={handleSelectMessage}
               onDeleteMessage={handleDeleteMessage}
+              locationStatus={locationStatus}
+              isDropdownOpen={isDropdownOpen}
+              setIsDropdownOpen={setIsDropdownOpen}
             />
             <QRDisplay 
               qrData={qrData?.data?.qrDataURL || null}

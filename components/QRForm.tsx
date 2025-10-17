@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Bank, VietQRRequest, Profile, SavedMessage } from '../types';
 import QuickActionsDropdown from './QuickActionsDropdown';
 
@@ -21,6 +21,11 @@ interface QRFormProps {
   onSaveMessage: (message: SavedMessage) => void;
   onSelectMessage: (name: string) => void;
   onDeleteMessage: (name: string) => void;
+  // Location prop
+  locationStatus: string | null;
+  // UI State props
+  isDropdownOpen: boolean;
+  setIsDropdownOpen: (isOpen: boolean) => void;
 }
 
 const QRForm: React.FC<QRFormProps> = (props) => {
@@ -39,13 +44,27 @@ const QRForm: React.FC<QRFormProps> = (props) => {
     selectedMessageName,
     onSelectMessage,
     onDeleteMessage,
+    locationStatus,
+    isDropdownOpen,
+    setIsDropdownOpen,
   } = props;
   
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
   const selectedBank = formData.acqId ? banks.find(b => b.bin === formData.acqId) : null;
   const selectedBankName = selectedBank?.shortName ?? 'Not Set';
   const fullBankName = selectedBank?.name ?? 'Bank not selected';
+  
+  const renderLocationStatus = () => {
+      if (!locationStatus) {
+        return <p className="mt-2 h-5"></p>; // Keep space for layout consistency
+      }
+      const isError = locationStatus.toLowerCase().startsWith('error:');
+      const isSuccess = locationStatus.toLowerCase().startsWith('location:');
+      let textColor = 'text-gray-700';
+      if (isError) textColor = 'text-red-700';
+      if (isSuccess) textColor = 'text-green-700';
+      
+      return <p className={`mt-2 text-xs font-medium ${textColor}`}>{locationStatus}</p>;
+  };
 
   return (
     <div className="p-6 sm:p-8 relative">
@@ -180,9 +199,7 @@ const QRForm: React.FC<QRFormProps> = (props) => {
               placeholder="e.g., Payment for order #123"
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
             />
-            <p className="mt-2 text-xs text-gray-500">
-              Tip: Save named messages with placeholders like <code className="bg-gray-200 px-1 rounded">{'{date}'}</code> and <code className="bg-gray-200 px-1 rounded">{'{time}'}</code> in the "Manage" panel.
-            </p>
+            {renderLocationStatus()}
         </div>
         <div className="flex items-center space-x-4">
             <button
