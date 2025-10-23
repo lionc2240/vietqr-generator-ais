@@ -24,45 +24,51 @@ const getCurrentPosition = (): Promise<GeolocationCoordinates> => {
 
 const reverseGeocode = async (coords: GeolocationCoordinates): Promise<string> => {
   const { latitude, longitude } = coords;
-  const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`;
+  // Add accept-language to get Vietnamese results
+  const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&accept-language=vi`;
 
   try {
-    const response = await fetch(url, {
-      headers: {
-        'Accept-Language': 'vi', // Prefer Vietnamese names
-      },
-    });
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error('Reverse geocoding request failed.');
     }
     const data = await response.json();
     
-    // Build a more specific location string, following user's requested format.
     const address = data.address;
-    const parts = [];
-    if (address.road) parts.push(address.road);
-    if (address.suburb) parts.push(address.suburb);
-    
-    // Add the city/state part, preferring state for conciseness (e.g., "Hà Nội" over "Thành phố Hà Nội").
-    const state = address.state;
-    const city = address.city;
-    const district = address.city_district;
 
-    if (state) {
-        parts.push(state);
-    } else if (city) {
-        parts.push(city);
-    } else if (district) {
-        parts.push(district);
+    // Special, simplified formatting for locations in Hanoi, as requested
+    if (address.state === 'Hà Nội') {
+        const hanoiParts = [];
+        if (address.road) hanoiParts.push(address.road);
+        if (address.suburb) {
+            // Removes "Phường " prefix. E.g., "Phường Đại Mỗ" becomes "Đại Mỗ"
+            const simplifiedSuburb = address.suburb.replace(/^Phường\s/, '');
+            hanoiParts.push(simplifiedSuburb);
+        }
+        
+        const uniqueHanoiParts = [...new Set(hanoiParts.filter(Boolean))];
+        if (uniqueHanoiParts.length > 0) {
+            return uniqueHanoiParts.join(', ');
+        }
+    }
+
+    // Default, more detailed formatting for all other locations
+    const defaultParts = [];
+    if (address.road) defaultParts.push(address.road);
+    if (address.suburb) defaultParts.push(address.suburb); 
+    
+    // Add the city/state part, preferring state for conciseness
+    const cityOrState = address.state || address.city || address.city_district;
+    if (cityOrState) {
+        defaultParts.push(cityOrState);
     }
     
-    // Filter out any empty parts and remove duplicates.
-    const finalParts = [...new Set(parts.filter(Boolean))];
-
-    if (finalParts.length > 0) {
-        return finalParts.join(', ');
+    const uniqueDefaultParts = [...new Set(defaultParts.filter(Boolean))];
+    if (uniqueDefaultParts.length > 0) {
+        return uniqueDefaultParts.join(', ');
     }
     
+    // Fallback to the full display name from the API
     return data.display_name || 'Unknown Location';
 
   } catch (error) {
@@ -70,6 +76,7 @@ const reverseGeocode = async (coords: GeolocationCoordinates): Promise<string> =
     throw error;
   }
 };
+
 
 /**
  * Gets the user's current location and returns a human-readable name.

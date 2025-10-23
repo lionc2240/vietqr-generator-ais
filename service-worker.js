@@ -1,8 +1,11 @@
-const CACHE_NAME = 'vietqr-generator-cache-v2';
+const CACHE_NAME = 'vietqr-generator-cache-v3';
 const urlsToCache = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/icons/icon-192x192.png',
+  '/icons/icon-512x512.png',
+  '/icons/icon-maskable-512x512.png',
   '/index.tsx',
   '/App.tsx',
   '/types.ts',
