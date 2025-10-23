@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vietqr-generator-cache-v3';
+const CACHE_NAME = 'vietqr-generator-cache-v4';
 const urlsToCache = [
   '/',
   '/index.html',
