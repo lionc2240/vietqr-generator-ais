@@ -1,11 +1,16 @@
-const CACHE_NAME = 'vietqr-generator-cache-v4';
+const CACHE_NAME = 'vietqr-generator-cache-v5';
 const urlsToCache = [
+  // App Shell
   '/',
   '/index.html',
   '/manifest.json',
+
+  // Icons
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
   '/icons/icon-maskable-512x512.png',
+
+  // Core Scripts & Components (local)
   '/index.tsx',
   '/App.tsx',
   '/types.ts',
@@ -20,14 +25,19 @@ const urlsToCache = [
   '/components/QRDisplay.tsx',
   '/components/QRModal.tsx',
   '/components/QuickActionsDropdown.tsx',
-  '/components/Spinner.tsx'
+  '/components/Spinner.tsx',
+
+  // External Dependencies (CDN) - CRITICAL for offline functionality and PWA installability
+  'https://cdn.tailwindcss.com',
+  'https://aistudiocdn.com/react@^19.2.0',
+  'https://aistudiocdn.com/react-dom@^19.2.0/client',
 ];
 
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('Opened cache and caching app shell');
+        console.log('Opened cache and caching app shell and dependencies');
         return cache.addAll(urlsToCache);
       })
   );
@@ -48,6 +58,10 @@ self.addEventListener('fetch', event => {
                   cache.put(event.request, networkResponse.clone());
                 }
                 return networkResponse;
+              }).catch(err => {
+                // Network fetch failed, which is expected when offline.
+                // The cached response (if available) will be used.
+                console.log('Network fetch failed for:', event.request.url);
               });
 
               // Return the cached response if it's available, otherwise wait for the network.
