@@ -37,19 +37,30 @@ const reverseGeocode = async (coords: GeolocationCoordinates): Promise<string> =
     }
     const data = await response.json();
     
-    // Construct a meaningful location string from the address components
+    // Build a more specific location string, following user's requested format.
     const address = data.address;
-    const locationParts = [
-      address.quarter,
-      address.suburb,
-      address.city_district,
-      address.city,
-      address.state,
-    ].filter(Boolean); // Filter out undefined/null parts
+    const parts = [];
+    if (address.road) parts.push(address.road);
+    if (address.suburb) parts.push(address.suburb);
     
-    if (locationParts.length > 0) {
-        // Join the first 2 most relevant parts for a concise name
-        return locationParts.slice(0, 2).join(', ');
+    // Add the city/state part, preferring state for conciseness (e.g., "Hà Nội" over "Thành phố Hà Nội").
+    const state = address.state;
+    const city = address.city;
+    const district = address.city_district;
+
+    if (state) {
+        parts.push(state);
+    } else if (city) {
+        parts.push(city);
+    } else if (district) {
+        parts.push(district);
+    }
+    
+    // Filter out any empty parts and remove duplicates.
+    const finalParts = [...new Set(parts.filter(Boolean))];
+
+    if (finalParts.length > 0) {
+        return finalParts.join(', ');
     }
     
     return data.display_name || 'Unknown Location';
